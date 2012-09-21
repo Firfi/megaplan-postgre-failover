@@ -7,10 +7,12 @@ import ru.megaplan.db.failover.NodeConstants
 import org.apache.zookeeper.AsyncCallback.{DataCallback, Children2Callback}
 import java.util
 import org.apache.zookeeper.data.{ACL, Stat}
-import org.apache.zookeeper.KeeperException.Code
+import org.apache.zookeeper.KeeperException.{NodeExistsException, Code}
 import org.apache.zookeeper.KeeperException.Code._
 import util.Collections
 import scala.collection.JavaConversions._
+import org.apache.log4j.Logger
+import ru.megaplan.db.failover.util.LogHelper
 
 /**
  * Created with IntelliJ IDEA.
@@ -19,7 +21,7 @@ import scala.collection.JavaConversions._
  * Time: 17:06
  * To change this template use File | Settings | File Templates.
  */
-object masterElectActor extends Actor {
+object masterElectActor extends Actor with LogHelper {
 
   val masterElectDataCallback = new DataCallback {
     def processResult(rc: Int, path: String, ctx: Any, data: Array[Byte], stat: Stat) {
@@ -27,6 +29,7 @@ object masterElectActor extends Actor {
       code match {
         case OK => {
           val masterAddress = new String(data)
+          log.debug("arrived new master address data : " + masterAddress)
           masterElectActor ! new MasterElectedAddressMessage(masterAddress)
         }
         case NONODE => { // candidate master died before we read its address, so elect again
@@ -48,7 +51,7 @@ object masterElectActor extends Actor {
       code match {
         case OK => {
           val newMaster = electNewMaster(children)
-          println("elected new master : " + newMaster)
+          log.info("elected new master : " + newMaster)
           masterElectActor ! new MasterElectedMessage(newMaster)
         }
         case _ => {}
@@ -64,12 +67,24 @@ object masterElectActor extends Actor {
         case WatcherInitMessage(zooKeeper, serverRoyalExecutor) => {
           zk = zooKeeper
           daddy = serverRoyalExecutor
-          zk.create(  // here masterChangedWatcherActor has to be in active watch // TODO: if not add master created message, detka
-            NodeConstants.SERVERS_ROOT+"/"+daddy.myid,
-            daddy.myDbAddress.toCharArray.map(_.toByte),
-            ZooDefs.Ids.READ_ACL_UNSAFE,
-            CreateMode.EPHEMERAL
-          )
+          try {
+            zk.create(  // here masterChangedWatcherActor has to be in active watch // TODO: if not add master created message, detka
+              NodeConstants.SERVERS_ROOT+"/"+daddy.applicationConfig.myId,
+              daddy.applicationConfig.dbAddress.toCharArray.map(_.toByte),
+              ZooDefs.Ids.READ_ACL_UNSAFE,
+              CreateMode.EPHEMERAL
+            )
+            reply(true)
+          } catch {
+            case e: NodeExistsException => {
+              reply(false)
+            }
+            case e: Exception => {
+              reply(false)
+              log.warn("exteprion in child node creating", e)
+            }
+          }
+
         }
         case m: MasterElectMessage => {
           zk.getChildren(NodeConstants.SERVERS_ROOT, false, masterElectCallback, null)

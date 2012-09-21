@@ -7,7 +7,7 @@
         </layout>
     </appender>
 
-    <category name="com.domain.project">
+    <category name="ru.megaplan">
         <priority value="debug"/>
     </category>
 

@@ -1,6 +1,8 @@
 package ru.megaplan.db.failover.server
 
 import actors.Actor
+import config.ApplicationConfig
+import config.util.{ConfigUtil}
 import message._
 import message.WatcherInitMessage
 import org.apache.zookeeper.{ZooKeeper, WatchedEvent, Watcher}
@@ -10,6 +12,7 @@ import org.apache.zookeeper.AsyncCallback.{DataCallback, StatCallback}
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper.KeeperException.Code
 import org.apache.zookeeper.KeeperException.Code._
+import ru.megaplan.db.failover.util.LogHelper
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,36 +21,45 @@ import org.apache.zookeeper.KeeperException.Code._
  * Time: 13:01
  * To change this template use File | Settings | File Templates.
  */
-object masterChangedWatcherActor extends Actor with Watcher {
+object masterChangedWatcherActor extends Actor with Watcher with LogHelper {
 
-  var myMasterAddress: String = null
-  var myDbAddress: String = null
+  var applicationConfig: ApplicationConfig = null
+  var myMasterAddress: Option[String] = Option.empty
+  var configUtil: ConfigUtil = null
 
-  val initCheckExistsCallback = new StatCallback {
+  val initCheckExistsCallback = new StatCallback with LogHelper {
+    log.debug("starting initCheckExistsCallback")
     def processResult(rc: Int, path: String, ctx: Any, stat: Stat) {
       val code = Code.get(rc)
       code match {
         case OK => { //if exists then get value and pass to daddy as init message
-          println("master exists on init : " + path)
+          log.info("master exists on init : " + path)
           masterChangedWatcherActor ! new MasterExistsMessage
         }
         case NONODE => { //if do not exists then pass daddy master not exists message
-          println("master not exists on init : " + path)
+          log.info("master not exists on init : " + path)
           masterChangedWatcherActor ! new MasterDeletedMessage
         }
-        case _ => {}  //if error ignore, daddy will resolve all problems
+        case CONNECTIONLOSS => {
+          masterChangedWatcherActor ! new WatchAgainMessage
+        }  //if error ignore, daddy will resolve all problems
       }
     }
   }
 
-  val refreshCheckExistsCallback = new StatCallback { // assume that on point of calling this callback master has to exists, else we assume that it was deleted
+  val refreshCheckExistsCallback = new StatCallback with LogHelper { // assume that on point of calling this callback master has to exists, else we assume that it was deleted
     def processResult(rc: Int, path: String, ctx: Any, stat: Stat) {
       val code = Code.get(rc)
       code match {
         case NONODE => { //if not exists pass to daddy _DELETED_ message
-
+          masterChangedWatcherActor ! new MasterDeletedMessage
         }
-        case _ => {} //any else just ignore, we are in Night Watch
+        case CONNECTIONLOSS => {
+          masterChangedWatcherActor ! new WatchAgainMessage
+        }
+        case _ => {
+          log.debug("other code : " + code)
+        }
       }
     }
   }
@@ -58,11 +70,16 @@ object masterChangedWatcherActor extends Actor with Watcher {
       code match {
         case OK => {
           val masterValue = new String(data)
-          if (masterValue == myMasterAddress) {  // i have this master in config
-            println("i am master so don't do anynting")
-          } else { // i don't have this master in config
-            println("setting new master : " + masterValue)
-            myMasterAddress = masterValue
+          if (myMasterAddress.isEmpty || myMasterAddress.get != masterValue) {
+            log.info("setting new master : " + masterValue)
+            myMasterAddress = Option(masterValue)
+            if (applicationConfig.dbAddress != masterValue) { //and it is not ME
+              configUtil.setRecoveryMode
+              configUtil.setCurrentMasterValue(masterValue)
+              configUtil.restartDb
+            }
+          } else {   // i have this master in config
+            log.info("i am master or master is set so don't do anynting ") //but maybe check for recovery.conf and remove it
           }
         }
         case NONODE => {
@@ -86,7 +103,9 @@ object masterChangedWatcherActor extends Actor with Watcher {
       case NodeDeleted => {
         masterChangedWatcherActor ! new MasterDeletedMessage
       }
-      case _ => {} //daddy will resolve other problems
+      case _ => {
+        log.debug("other type in masterChangedWatcherActor proccess method : " + e.getType + " and state : " + e.getState)
+      } //daddy will resolve other problems
     }
 
   }
@@ -100,10 +119,17 @@ object masterChangedWatcherActor extends Actor with Watcher {
     loop {
       receive {
         case WatcherInitMessage(zooKeeper, serverRoyalExecutor) => {
-          println("initializing masterChangedWatcherActor")
+          log.debug("initializing masterChangedWatcherActor")
           zk = zooKeeper
           daddy = serverRoyalExecutor
-          myDbAddress = daddy.myDbAddress
+
+          applicationConfig = serverRoyalExecutor.applicationConfig
+          configUtil = new ConfigUtil(applicationConfig)
+          myMasterAddress = configUtil.getCurrentMasterValue
+          log.debug("current master address from config util : " + myMasterAddress)
+          this ! new StartWatchMessage
+        }
+        case m: StartWatchMessage => {
           zk.exists(MASTER_NODE, this, initCheckExistsCallback, null)
         }
         case m: WatchAgainMessage => {

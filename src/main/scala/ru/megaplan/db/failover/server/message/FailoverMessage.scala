@@ -13,9 +13,15 @@ import ru.megaplan.db.failover.server.ServerRoyalExecutor
 abstract class FailoverMessage
 abstract class MasterStatusMessage extends FailoverMessage
 
+class RoyalExecutorInitMessage extends FailoverMessage
+class WaitForStartMessage extends FailoverMessage
+class InitMasterElectActorMessage extends FailoverMessage
+class SessionExpiredMessage extends FailoverMessage
+
 case class WatcherInitMessage(zk: ZooKeeper, serverRoyalExecutor: ServerRoyalExecutor) extends FailoverMessage
 
 class WatchAgainMessage extends FailoverMessage
+class StartWatchMessage extends FailoverMessage
 
 class MasterExistsMessage extends MasterStatusMessage
 class MasterCreatedMessage extends MasterStatusMessage

@@ -1,31 +1,24 @@
-package ru.megaplan.db.failover.server
+package ru.megaplan.db.failover2.server
 
-import actors.Actor
-import actors.Actor._
-import config.ApplicationConfig
-import ru.megaplan.db.failover.message.{ClientInitMasterMessage, ApplicationExitMessage}
-import ru.megaplan.db.failover.client.ClientRoyalExecutor
+import ru.megaplan.db.failover.util.LogHelper
+import ru.megaplan.db.failover.server.config.ApplicationConfig
+import ru.megaplan.db.failover.server.ServerRoyalExecutor
 import com.thoughtworks.xstream.XStream
 import com.thoughtworks.xstream.io.xml.DomDriver
-import ru.megaplan.db.failover.util.LogHelper
-import com.thoughtworks.xstream.io.path.Path
 import java.io.File
 
 /**
  * Created with IntelliJ IDEA.
  * User: firfi
- * Date: 13.09.12
- * Time: 12:19
+ * Date: 19.09.12
+ * Time: 20:41
  * To change this template use File | Settings | File Templates.
  */
-object ServerApp extends App with LogHelper {
-
-
-
+class Application extends App with LogHelper {
   override def main(args: Array[String]) {
 
     val applicationConfig: ApplicationConfig = if (args.isEmpty) readConfig("") else readConfig(args(0))
-    val royalExecutor = new ServerRoyalExecutor(applicationConfig)
+    val royalExecutor = new RoyalExecutor(applicationConfig)
     royalExecutor.start()
 
   }
@@ -65,5 +58,4 @@ object ServerApp extends App with LogHelper {
       case _ => throw new ClassCastException
     }
   }
-
 }
