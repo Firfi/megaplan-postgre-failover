@@ -8,4 +8,4 @@ package ru.megaplan.db.failover2.server.message
  * To change this template use File | Settings | File Templates.
  */
 abstract class ChildNumBarrierMessage
-class ChildBarrierOk extends ChildNumBarrierMessage
+case object ChildBarrierOk extends ChildNumBarrierMessage

@@ -8,4 +8,8 @@ package ru.megaplan.db.failover2.server.message
  * To change this template use File | Settings | File Templates.
  */
 abstract class FailoverActorMessage
-class FailoverActorTerminateMessage extends FailoverActorMessage
+case object FailoverActorTerminateMessage extends FailoverActorMessage
+case object MasterCreatedMessage extends FailoverActorMessage
+case object MasterDeletedMessage extends FailoverActorMessage
+case class MasterElectedMessage(master: String) extends FailoverActorMessage
+case object IAmMasterNowMessage extends FailoverActorMessage

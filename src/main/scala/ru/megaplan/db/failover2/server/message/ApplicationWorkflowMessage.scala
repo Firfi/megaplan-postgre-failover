@@ -8,6 +8,6 @@ package ru.megaplan.db.failover2.server.message
  * To change this template use File | Settings | File Templates.
  */
 abstract class ApplicationWorkflowMessage
-class ReinitApplicationMessage extends ApplicationWorkflowMessage
-class StopApplicatiomMessage extends ApplicationWorkflowMessage
+case object ReinitApplicationMessage extends ApplicationWorkflowMessage
+case object StopApplicatiomMessage extends ApplicationWorkflowMessage
 

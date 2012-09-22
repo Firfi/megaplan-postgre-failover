@@ -1,7 +1,6 @@
 package ru.megaplan.db.failover.server
 
 import config.ApplicationConfig
-import config.util.configUtil
 import message._
 import message.MasterElectedAddressMessage
 import message.WatcherInitMessage
@@ -11,7 +10,6 @@ import ru.megaplan.db.failover.{NodeConstants, RoyalExecutor}
 import data.{Stat, ACL}
 import scala.collection.JavaConversions._
 import org.apache.zookeeper.AsyncCallback.{Children2Callback, StringCallback, DataCallback, StatCallback}
-import org.apache.log4j.Logger
 import org.apache.zookeeper.ZooDefs.Perms._
 import ru.megaplan.db.failover.util.LogHelper
 import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
