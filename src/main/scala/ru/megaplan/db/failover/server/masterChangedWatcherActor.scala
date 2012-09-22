@@ -12,7 +12,7 @@ import org.apache.zookeeper.AsyncCallback.{DataCallback, StatCallback}
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper.KeeperException.Code
 import org.apache.zookeeper.KeeperException.Code._
-import ru.megaplan.db.failover.util.LogHelper
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -21,13 +21,13 @@ import ru.megaplan.db.failover.util.LogHelper
  * Time: 13:01
  * To change this template use File | Settings | File Templates.
  */
-object masterChangedWatcherActor extends Actor with Watcher with LogHelper {
+object masterChangedWatcherActor extends Actor with Watcher with Logging {
 
   var applicationConfig: ApplicationConfig = null
   var myMasterAddress: Option[String] = Option.empty
   var configUtil: ConfigUtil = null
 
-  val initCheckExistsCallback = new StatCallback with LogHelper {
+  val initCheckExistsCallback = new StatCallback with Logging {
     log.debug("starting initCheckExistsCallback")
     def processResult(rc: Int, path: String, ctx: Any, stat: Stat) {
       val code = Code.get(rc)
@@ -47,7 +47,7 @@ object masterChangedWatcherActor extends Actor with Watcher with LogHelper {
     }
   }
 
-  val refreshCheckExistsCallback = new StatCallback with LogHelper { // assume that on point of calling this callback master has to exists, else we assume that it was deleted
+  val refreshCheckExistsCallback = new StatCallback with Logging { // assume that on point of calling this callback master has to exists, else we assume that it was deleted
     def processResult(rc: Int, path: String, ctx: Any, stat: Stat) {
       val code = Code.get(rc)
       code match {

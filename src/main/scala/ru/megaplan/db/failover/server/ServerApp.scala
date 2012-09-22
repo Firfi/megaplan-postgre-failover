@@ -1,15 +1,9 @@
 package ru.megaplan.db.failover.server
 
-import actors.Actor
-import actors.Actor._
 import config.ApplicationConfig
 import ru.megaplan.db.failover.message.{ClientInitMasterMessage, ApplicationExitMessage}
-import ru.megaplan.db.failover.client.ClientRoyalExecutor
-import com.thoughtworks.xstream.XStream
-import com.thoughtworks.xstream.io.xml.DomDriver
-import ru.megaplan.db.failover.util.LogHelper
-import com.thoughtworks.xstream.io.path.Path
-import java.io.File
+import com.typesafe.config.ConfigFactory
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,19 +12,19 @@ import java.io.File
  * Time: 12:19
  * To change this template use File | Settings | File Templates.
  */
-object ServerApp extends App with LogHelper {
+object ServerApp extends App with Logging {
 
 
 
   override def main(args: Array[String]) {
 
-    val applicationConfig: ApplicationConfig = if (args.isEmpty) readConfig("") else readConfig(args(0))
+    val applicationConfig = new ApplicationConfig(ConfigFactory.load)
     val royalExecutor = new ServerRoyalExecutor(applicationConfig)
     royalExecutor.start()
 
   }
 
-  def readConfig(configPath: String): ApplicationConfig = {
+ /* def readConfig(configPath: String): ApplicationConfig = {
     def isPath(path: String): Boolean = {
       try {
         val p = new java.io.File(path)
@@ -64,6 +58,6 @@ object ServerApp extends App with LogHelper {
       case appConfig: ApplicationConfig => appConfig
       case _ => throw new ClassCastException
     }
-  }
+  }  */
 
 }

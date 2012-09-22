@@ -10,4 +10,4 @@ import org.apache.zookeeper.ZooKeeper
  * To change this template use File | Settings | File Templates.
  */
 abstract class ChildInitWatcherMessage
-case class ChildDisappear(zk: ZooKeeper)
+case class MyChildNodeDisappear(zk: ZooKeeper)

@@ -10,9 +10,7 @@ import org.apache.zookeeper.data.{ACL, Stat}
 import org.apache.zookeeper.KeeperException.{NodeExistsException, Code}
 import org.apache.zookeeper.KeeperException.Code._
 import util.Collections
-import scala.collection.JavaConversions._
-import org.apache.log4j.Logger
-import ru.megaplan.db.failover.util.LogHelper
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -21,7 +19,7 @@ import ru.megaplan.db.failover.util.LogHelper
  * Time: 17:06
  * To change this template use File | Settings | File Templates.
  */
-object masterElectActor extends Actor with LogHelper {
+object masterElectActor extends Actor with Logging {
 
   val masterElectDataCallback = new DataCallback {
     def processResult(rc: Int, path: String, ctx: Any, data: Array[Byte], stat: Stat) {

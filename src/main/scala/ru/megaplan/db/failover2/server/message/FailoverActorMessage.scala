@@ -13,3 +13,5 @@ case object MasterCreatedMessage extends FailoverActorMessage
 case object MasterDeletedMessage extends FailoverActorMessage
 case class MasterElectedMessage(master: String) extends FailoverActorMessage
 case object IAmMasterNowMessage extends FailoverActorMessage
+case object NoMasterMessage extends FailoverActorMessage
+case object MasterExistsMessage extends FailoverActorMessage

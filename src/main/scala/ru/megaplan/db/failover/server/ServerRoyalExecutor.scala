@@ -1,6 +1,7 @@
 package ru.megaplan.db.failover.server
 
 import config.ApplicationConfig
+import config.util.ConfigUtil
 import message._
 import message.MasterElectedAddressMessage
 import message.WatcherInitMessage
@@ -11,10 +12,10 @@ import data.{Stat, ACL}
 import scala.collection.JavaConversions._
 import org.apache.zookeeper.AsyncCallback.{Children2Callback, StringCallback, DataCallback, StatCallback}
 import org.apache.zookeeper.ZooDefs.Perms._
-import ru.megaplan.db.failover.util.LogHelper
 import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
 import java.util
 import org.apache.zookeeper.KeeperException.{SessionExpiredException, Code}
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -23,7 +24,7 @@ import org.apache.zookeeper.KeeperException.{SessionExpiredException, Code}
  * Time: 12:24
  * To change this template use File | Settings | File Templates.
  */
-class ServerRoyalExecutor(val applicationConfig: ApplicationConfig) extends Watcher with Actor with RoyalExecutor with LogHelper {
+class ServerRoyalExecutor(val applicationConfig: ApplicationConfig) extends Watcher with Actor with RoyalExecutor with Logging {
 
   val MIN_NODES_FOR_START = 3
 
@@ -113,8 +114,8 @@ class ServerRoyalExecutor(val applicationConfig: ApplicationConfig) extends Watc
           if (applicationConfig.dbAddress == newMasterAddress) {
             log.debug("new elected master is me so create ephemeral master node with value : " + newMasterAddress)
             //TODO: but first create trigger if i am slave now
-            val currentMasterAndTriggerValueOption = configUtil.getMasterAndTrigger(applicationConfig.dbPath)
-            log.warn(currentMasterAndTriggerValueOption)
+            val currentMasterAndTriggerValueOption = new ConfigUtil(applicationConfig).getMasterAndTrigger
+            log.warn(currentMasterAndTriggerValueOption.mkString)
             if (!currentMasterAndTriggerValueOption.isEmpty && currentMasterAndTriggerValueOption.get._1 != newMasterAddress) { //also master changed and we switch from slave
               log.info("i wasn't master so create trigger file : ")
               new java.io.File(currentMasterAndTriggerValueOption.get._2).createNewFile()

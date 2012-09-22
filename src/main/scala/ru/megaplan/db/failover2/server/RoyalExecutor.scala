@@ -4,13 +4,10 @@ import message._
 import ru.megaplan.db.failover.server.config.ApplicationConfig
 import actors.Actor
 import org.apache.zookeeper._
-import data.Stat
 import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
-import ru.megaplan.db.failover.util.LogHelper
 import ru.megaplan.db.failover.NodeConstants
 import org.apache.zookeeper.KeeperException.{NoNodeException, Code, NodeExistsException}
-import org.apache.zookeeper.AsyncCallback.{Children2Callback, StatCallback}
-import java.util
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -19,7 +16,7 @@ import java.util
  * Time: 20:42
  * To change this template use File | Settings | File Templates.
  */
-class RoyalExecutor(val applicationConfig: ApplicationConfig) extends Actor with LogHelper {
+class RoyalExecutor(val applicationConfig: ApplicationConfig) extends Actor with Logging {
 
   def mainConnectionWatcher = new Watcher {
     def process(e: WatchedEvent) {
@@ -35,8 +32,6 @@ class RoyalExecutor(val applicationConfig: ApplicationConfig) extends Actor with
     }
   }
 
-
-
   def initZkConnection = {
     new ZooKeeper(applicationConfig.zooConnectString, 3000, mainConnectionWatcher)
   }
@@ -49,7 +44,7 @@ class RoyalExecutor(val applicationConfig: ApplicationConfig) extends Actor with
         ZooDefs.Ids.READ_ACL_UNSAFE,
         CreateMode.EPHEMERAL
       )
-      true
+      return true
     } catch {
       case e: NodeExistsException => {
         log.error("child node : " + applicationConfig.myId + " exists")
@@ -75,37 +70,30 @@ class RoyalExecutor(val applicationConfig: ApplicationConfig) extends Actor with
     childNumBarrier.waitChildNumBarrier(zk, this)
     log.debug("waiting for child num barrier... ")
     receive {
-      case m: ChildNumBarrierMessage => {
-        case m: ChildBarrierOk => {
-          log.info("child num barrier returns ok, starting failover workflow")
-          new FailoverActor(applicationConfig, zk).start()
-        }
+      case ChildBarrierOk => {
+        log.info("child num barrier returns ok, starting failover workflow")
+        new FailoverActor(applicationConfig, zk).start()
       }
     }
 
     loopWhile(continue) {
       receive {
-        case m: ApplicationWorkflowMessage => {
-          case m : ReinitApplicationMessage => {
-            val zk = initZkConnection
-            val created = createChildMe(zk)
-            if (!created) {
-              log.warn("my child node exists on reinit, watching for node deletion...")
-              childInitializer.watchChildMe(zk, this, applicationConfig.myId) // and wait for child init
-            } else {
-              new FailoverActor(applicationConfig, zk).start()
-            }
-          }
-          case m: StopApplicatiomMessage => {
-            continue = false
+        case ReinitApplicationMessage => {
+          val zk = initZkConnection
+          val created = createChildMe(zk)
+          if (!created) {
+            log.warn("my child node exists on reinit, watching for node deletion...")
+            childInitializer.watchChildMe(zk, this, applicationConfig.myId) // and wait for child init
+          } else {
+            new FailoverActor(applicationConfig, zk).start()
           }
         }
-        case m: ChildInitWatcherMessage => {
-          case ChildDisappear(activeZooKeeper) => {
-            new FailoverActor(applicationConfig, activeZooKeeper).start()
-          }
+        case StopApplicatiomMessage => {
+          continue = false
         }
-
+        case MyChildNodeDisappear(activeZooKeeper) => {
+          new FailoverActor(applicationConfig, activeZooKeeper).start()
+        }
       }
     }
   }

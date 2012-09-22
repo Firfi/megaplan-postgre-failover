@@ -8,7 +8,7 @@ import org.apache.zookeeper.KeeperException.Code
 import ru.megaplan.db.failover.message.{GenericMasterWatcherMessage, MasterDeletedMessage, MasterChangedMessage, ClientInitMasterMessage}
 import ru.megaplan.db.failover.{DbConstants, RoyalExecutor, NodeConstants}
 import actors.Actor
-import ru.megaplan.db.failover.util.LogHelper
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -17,7 +17,7 @@ import ru.megaplan.db.failover.util.LogHelper
  * Time: 12:19
  * To change this template use File | Settings | File Templates.
  */
-class ClientRoyalExecutor(val hostPort: String, val shell: String) extends Actor with LogHelper {
+class ClientRoyalExecutor(val hostPort: String, val shell: String) extends Actor with Logging {
 
   val royalExecutor = this
 

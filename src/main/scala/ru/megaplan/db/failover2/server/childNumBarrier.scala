@@ -7,9 +7,9 @@ import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper.KeeperException.Code
 import org.apache.zookeeper.Watcher.Event.{KeeperState, EventType}
 import ru.megaplan.db.failover.NodeConstants
-import ru.megaplan.db.failover.util.LogHelper
 import java.util
 import actors.Actor
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,7 +18,7 @@ import actors.Actor
  * Time: 19:39
  * To change this template use File | Settings | File Templates.
  */
-object childNumBarrier extends LogHelper {
+object childNumBarrier extends Logging {
 
   val MIN_CHILD_NUM = 3
 
@@ -33,7 +33,7 @@ object childNumBarrier extends LogHelper {
     def childNumIsOk {
       if (!barrierRan) {
         barrierRan = true
-        responseActor ! new ChildBarrierOk
+        responseActor ! ChildBarrierOk
       } else {
         log.warn("barrier ran once, ignore")
       }
@@ -47,7 +47,7 @@ object childNumBarrier extends LogHelper {
         code match {
           case Code.OK => {
             val childNum = children.size()
-            if (childNum == 0 || childNum == 1) {
+            if (childNum == 0) {
               throw new RuntimeException("child num is " + childNum + " it is illegal state") // this cant'be
             }
             if (childNum < MIN_CHILD_NUM) {

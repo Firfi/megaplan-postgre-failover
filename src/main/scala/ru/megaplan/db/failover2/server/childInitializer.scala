@@ -1,14 +1,14 @@
 package ru.megaplan.db.failover2.server
 
 import actors.Actor
-import message.ChildDisappear
+import message.{MyChildNodeDisappear}
 import org.apache.zookeeper.{WatchedEvent, Watcher, ZooKeeper}
 import org.apache.zookeeper.Watcher.Event.{KeeperState, EventType}
 import org.apache.zookeeper.AsyncCallback.StatCallback
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper.KeeperException.Code
 import ru.megaplan.db.failover.NodeConstants
-import ru.megaplan.db.failover.util.LogHelper
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -17,16 +17,16 @@ import ru.megaplan.db.failover.util.LogHelper
  * Time: 19:23
  * To change this template use File | Settings | File Templates.
  */
-object childInitializer extends LogHelper {
+object childInitializer extends Logging {
 
-  def watchChildMe(zk: ZooKeeper, actorForResponse: Actor, myId: Int) {
+  def watchChildMe(zk: ZooKeeper, actorForResponse: Actor, myId: Int) = new {
 
     var responceOk = false
 
     def childDisappear {
       if (!responceOk) {
         responceOk = true // perhaps childMeStatCallback would run this method first
-        actorForResponse ! new ChildDisappear(zk)
+        actorForResponse ! MyChildNodeDisappear(zk)
       }
 
     }

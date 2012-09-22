@@ -1,7 +1,0 @@
-<config>
-    <dbPath>/usr/local/pgsql/data</dbPath>
-    <zooConnectString>10.10.0.101:2181,10.10.0.102:2181,10.10.0.103:2181</zooConnectString>
-    <dbAddress>10.10.0.101:5432</dbAddress>
-    <myId>1</myId>
-    <restartScript>/usr/local/pgsql/restart.sh</restartScript>
-</config>

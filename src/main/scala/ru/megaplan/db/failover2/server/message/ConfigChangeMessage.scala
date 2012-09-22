@@ -11,5 +11,5 @@ import actors.Actor
  * To change this template use File | Settings | File Templates.
  */
 abstract class ConfigChangeMessage
-case class PromoteMessage(caller: Actor)
+case class PromoteMessage(applicationConfig: ApplicationConfig, caller: Actor)
 case class PullMasterMessage(applicationConfig: ApplicationConfig, master: String)

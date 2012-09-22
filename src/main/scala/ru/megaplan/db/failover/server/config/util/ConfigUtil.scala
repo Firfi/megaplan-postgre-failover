@@ -1,15 +1,14 @@
 package ru.megaplan.db.failover.server.config.util
 
-import ru.megaplan.db.failover.util.LogHelper
 import ru.megaplan.db.failover.{NodeConstants, DbConstants}
 import java.io._
 import java.util.Properties
-import actors.Actor
 import org.apache.commons.lang.StringUtils
 import scala.actors.Actor._
 import org.apache.commons.io.{IOUtils, FileUtils}
 import scala.Some
 import ru.megaplan.db.failover.server.config.ApplicationConfig
+import com.codahale.logula.Logging
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,7 +17,7 @@ import ru.megaplan.db.failover.server.config.ApplicationConfig
  * Time: 15:33
  * To change this template use File | Settings | File Templates.
  */
-class ConfigUtil(applicationConfig: ApplicationConfig) extends LogHelper {
+class ConfigUtil(applicationConfig: ApplicationConfig) extends Logging {
 
   val dbPath = applicationConfig.dbPath
   val restartDbScript = applicationConfig.restartScript
@@ -34,11 +33,9 @@ class ConfigUtil(applicationConfig: ApplicationConfig) extends LogHelper {
         confFile.createNewFile()
         val s1 = this.getClass.getClassLoader.getResourceAsStream("recovery.conf")
         val s2 = new FileOutputStream(confFile)
-        log.warn(s1)
         IOUtils.copy(s1,s2)
         s1.close()
         s2.close()
-        log.warn(confFile.exists())
       } else {
         if (!confFile.exists()) {
           FileUtils.copyFile(doneFile, confFile)
