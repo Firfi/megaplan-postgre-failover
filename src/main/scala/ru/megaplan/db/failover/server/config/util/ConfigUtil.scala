@@ -1,14 +1,12 @@
 package ru.megaplan.db.failover.server.config.util
 
-import ru.megaplan.db.failover.{NodeConstants, DbConstants}
-import java.io._
+import ru.megaplan.db.failover.{DbConstants}
 import java.util.Properties
-import org.apache.commons.lang.StringUtils
-import scala.actors.Actor._
-import org.apache.commons.io.{IOUtils, FileUtils}
 import scala.Some
 import ru.megaplan.db.failover.server.config.ApplicationConfig
 import com.codahale.logula.Logging
+import java.io.{FileInputStream, FileOutputStream, File}
+import java.nio.channels.Channels
 
 /**
  * Created with IntelliJ IDEA.
@@ -31,14 +29,19 @@ class ConfigUtil(applicationConfig: ApplicationConfig) extends Logging {
     } else {
       if (!confFile.exists() && !doneFile.exists()) {
         confFile.createNewFile()
-        val s1 = this.getClass.getClassLoader.getResourceAsStream("recovery.conf")
-        val s2 = new FileOutputStream(confFile)
-        IOUtils.copy(s1,s2)
-        s1.close()
-        s2.close()
+        val source = Channels.newChannel(this.getClass.getClassLoader.getResourceAsStream("recovery.conf"))
+        val destination = new FileOutputStream(confFile)
+        destination.getChannel.transferFrom(source, 0, Long.MaxValue)
+        source.close()
+        destination.close()
       } else {
         if (!confFile.exists()) {
-          FileUtils.copyFile(doneFile, confFile)
+          val source = new FileInputStream(doneFile).getChannel
+          confFile.createNewFile()
+          val destination = new FileOutputStream(confFile).getChannel
+          destination.transferFrom(source, 0, Long.MaxValue)
+          source.close()
+          destination.close()
         }
       }
     }
@@ -96,22 +99,14 @@ class ConfigUtil(applicationConfig: ApplicationConfig) extends Logging {
   def restartDb {
     val process = java.lang.Runtime.getRuntime.exec(restartDbScript + " " + dbPath)
     val res = process.waitFor()
-    log.debug("restart script done")
-    val sw = new StringWriter()
-    actor {
-      IOUtils.copy(process.getInputStream, sw, "UTF-8")
-      IOUtils.copy(process.getErrorStream, sw, "UTF-8")
-    }
-    receiveWithin(2000) {
-      case _ => {}
-    }
-    log.info(sw.toString)
     log.info("restartScript : " + restartDbScript + " executed with result code : " + res)
   }
 
   private def getStrippedValue(props: Properties, key: String) = {
-    log.debug("get properties key : " + key)
-    StringUtils.strip(props.get(key).toString,"'\"")
+    var s = props.get(key).toString
+    if (s.charAt(0)=='\'') s = s.substring(1)
+    if (s.charAt(s.length-1)=='\'') s = s.substring(0,s.length-1)
+    s
   }
 
   //TODO: it is currently not thread-safe

@@ -1,7 +1,5 @@
 package ru.megaplan.db.failover.server.config
 
-import reflect.BeanInfo
-import com.thoughtworks.xstream.annotations.XStreamAlias
 import com.typesafe.config.Config
 
 /**
