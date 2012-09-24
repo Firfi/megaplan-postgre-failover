@@ -11,6 +11,8 @@ import actors.Actor
 import com.codahale.logula.Logging
 import ru.megaplan.db.failover.message.MasterChangedMessage
 import ru.megaplan.db.failover.message.ClientInitMasterMessage
+import io.Source
+import java.io.FileOutputStream
 
 /**
  * Created with IntelliJ IDEA.
@@ -101,10 +103,21 @@ class ClientRoyalExecutor(val hostPort: String, val shell: String) extends Actor
   }
 
   val masterDataCallback = new DataCallback {
+
+    def setMaster(addressAndPort: String) {
+      val newContent = Source.fromFile(shell).getLines().map(line => {
+        if (line.contains("host=")) line.replaceFirst("host=[^ ]+","host="+addressAndPort.split(':')(0)) else line
+      }).mkString("\n").getBytes
+      val fos = new FileOutputStream(shell)
+      fos write newContent
+      fos.close()
+    }
+
     def processResult(rc: Int, path: String, ctx: Any, data: Array[Byte], stat: Stat) {
       val code = Code.get(rc)
       code match {
         case Code.OK => {
+          setMaster(new String(data))
           log.warn("new master : " + new String(data))
         }
         case Code.NONODE => {
