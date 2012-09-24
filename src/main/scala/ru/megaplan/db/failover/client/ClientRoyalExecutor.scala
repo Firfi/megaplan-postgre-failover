@@ -1,14 +1,16 @@
 package ru.megaplan.db.failover.client
 
-import org.apache.zookeeper.{ZooKeeper, WatchedEvent, Watcher}
+import org.apache.zookeeper.{AsyncCallback, ZooKeeper, WatchedEvent, Watcher}
 import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
-import org.apache.zookeeper.AsyncCallback.{StatCallback, DataCallback}
+import org.apache.zookeeper.AsyncCallback.{VoidCallback, StatCallback, DataCallback}
 import org.apache.zookeeper.data.Stat
 import org.apache.zookeeper.KeeperException.Code
-import ru.megaplan.db.failover.message.{GenericMasterWatcherMessage, MasterDeletedMessage, MasterChangedMessage, ClientInitMasterMessage}
+import ru.megaplan.db.failover.message._
 import ru.megaplan.db.failover.{DbConstants, RoyalExecutor, NodeConstants}
 import actors.Actor
 import com.codahale.logula.Logging
+import ru.megaplan.db.failover.message.MasterChangedMessage
+import ru.megaplan.db.failover.message.ClientInitMasterMessage
 
 /**
  * Created with IntelliJ IDEA.
@@ -19,70 +21,112 @@ import com.codahale.logula.Logging
  */
 class ClientRoyalExecutor(val hostPort: String, val shell: String) extends Actor with Logging {
 
-  val royalExecutor = this
-
-  val clientConnectionWatcher = new Watcher {
-    def process(e: WatchedEvent) {
-      royalExecutor ! ClientInitMasterMessage
+  val syncCallback = new VoidCallback {
+    def processResult(rc: Int, path: String, ctx: Any) {
+      watchMaster
     }
   }
 
-  val clientMasterWatcher = new Watcher {
+  val mainConnectionWatcher = new Watcher {
+    var afterExpired = false
     def process(e: WatchedEvent) {
+      log.debug("connection event : " + e)
       e.getType match {
-        case EventType.NodeCreated | EventType.NodeDataChanged => {
-          royalExecutor ! MasterChangedMessage
-        }
-        case EventType.NodeDeleted => {
-          royalExecutor ! MasterDeletedMessage
-        }
-        case _ => {
+        case EventType.None => {
           e.getState match {
-            case KeeperState.Expired | KeeperState.Disconnected => {
-              // do nothing
+            case KeeperState.SyncConnected => {
+              if (afterExpired) {
+                afterExpired = false
+                zk.sync(NodeConstants.MASTER_NODE, syncCallback, null)
+              } else {
+                watchMaster
+              }
+
+            }
+            case KeeperState.Expired => {
+              afterExpired = true
+              initZk
+            }
+            case KeeperState.Disconnected => {
+              //wait for expired event
             }
             case _ => {
-              royalExecutor ! GenericMasterWatcherMessage
+              log.warn("some other event type")
             }
           }
+        }
+        case _ => {
+          log.warn("this can't be : " + e)
         }
       }
     }
   }
 
-  val clientMasterDataCallback = new DataCallback {
-    def processResult(rc: Int, path: String, ctx: Any, data: Array[Byte], stat: Stat) {
+  val masterExistenceCallback = new StatCallback {
+    def processResult(rc: Int, path: String, ctx: Any, stat: Stat) {
       val code = Code.get(rc)
       code match {
-        case Code.NONODE => {}
         case Code.OK => {
-          royalExecutor ! MasterChangedMessage
+          getMasterData
+        }
+        case Code.NONODE => {
+          log.warn("master not exists in masterExistenceCallback")
         }
         case _ => {}
       }
     }
   }
 
-
-
-  def act() {
-    var zk = new ZooKeeper(hostPort, 3000, clientConnectionWatcher)
-    zk.exists(NodeConstants.MASTER_NODE, clientMasterWatcher)
-    loop {
-      receive {
-        case ClientInitMasterMessage => {
-          zk = new ZooKeeper(hostPort, 3000, clientConnectionWatcher)
-          zk.getData(NodeConstants.MASTER_NODE, false, clientMasterDataCallback, null)
+  val masterWatcher = new Watcher {
+    def process(e: WatchedEvent) {
+      e.getState match {
+        case KeeperState.SyncConnected => {
+          e.getType match {
+            case EventType.NodeCreated => {
+              getMasterData
+            }
+            case EventType.NodeDeleted => {
+              watchMaster
+            }
+            case _ => {
+              log.warn("illegal master node event type with event : " + e)
+            }
+          }
         }
-        case MasterChangedMessage => {
-          zk.getData(NodeConstants.MASTER_NODE, false, clientMasterDataCallback, null)
-        }
-        case MasterDeletedMessage | GenericMasterWatcherMessage=> {
-          zk.exists(NodeConstants.MASTER_NODE, clientMasterWatcher)
+        case _ => {
+          log.debug("bad event : " + e + " in masterWatcher")
         }
       }
     }
+  }
 
+  val masterDataCallback = new DataCallback {
+    def processResult(rc: Int, path: String, ctx: Any, data: Array[Byte], stat: Stat) {
+      val code = Code.get(rc)
+      code match {
+        case Code.OK => {
+          log.warn("new master : " + new String(data))
+        }
+        case Code.NONODE => {
+          log.error("no node on master data callback")
+        }
+        case _ => {
+          log.warn("other code in masterdatacallback : " + code)
+        }
+      }
+    }
+  }
+
+  var zk: ZooKeeper = null
+  def initZk {zk = new ZooKeeper(hostPort, 3000, mainConnectionWatcher, true)}
+  def watchMaster {zk.exists(NodeConstants.MASTER_NODE, masterWatcher, masterExistenceCallback, null)}
+  def getMasterData {zk.getData(NodeConstants.MASTER_NODE, masterWatcher, masterDataCallback, null)}
+
+  def act() {
+    initZk
+    loop {
+
+    }
   }
 
 }

@@ -14,4 +14,5 @@ case class ApplicationExitMessage(caller: Any)
 case class ClientInitMasterMessage(caller: Any)
 case class MasterChangedMessage(master: String)
 case object MasterDeletedMessage
-case object GenericMasterWatcherMessage
+case object StartMasterWatchMessage
+case object RewatchMessage
