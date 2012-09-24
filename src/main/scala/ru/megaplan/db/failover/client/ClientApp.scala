@@ -1,8 +1,9 @@
 package ru.megaplan.db.failover.client
 
 import actors.Actor.{loopWhile, react}
-import actors.Actor
 import ru.megaplan.db.failover.message.{ClientInitMasterMessage, ApplicationExitMessage}
+import com.codahale.logula.Logging
+import org.apache.log4j.Level
 
 
 /**
@@ -13,9 +14,11 @@ import ru.megaplan.db.failover.message.{ClientInitMasterMessage, ApplicationExit
  * To change this template use File | Settings | File Templates.
  */
 
-object ClientApp extends App {
+object ClientApp extends App with Logging {
 
   override def main(args: Array[String]) {
+
+    println("starting main")
     if (args.length < 2) {
       System.err
         .println("USAGE: hostPort shellScript(masterAddress: String)")
@@ -23,11 +26,14 @@ object ClientApp extends App {
     }
     val hostPort = args(0)
     val shell = args(1)
+    log.warn(hostPort + " on initialization")
 
     val royalExecutor = new ClientRoyalExecutor(hostPort, shell)
     royalExecutor.start()
 
   }
+
+
 
 
 }
