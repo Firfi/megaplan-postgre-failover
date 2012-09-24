@@ -1,10 +1,11 @@
 package ru.megaplan.db.failover2.server
 
+import ru.megaplan.db.failover.util.LogHelper
 import ru.megaplan.db.failover.server.config.ApplicationConfig
+import ru.megaplan.db.failover.server.ServerRoyalExecutor
+import com.thoughtworks.xstream.XStream
+import com.thoughtworks.xstream.io.xml.DomDriver
 import java.io.File
-import com.typesafe.config.ConfigFactory
-import com.codahale.logula.Logging
-import org.apache.log4j.Level
 
 /**
  * Created with IntelliJ IDEA.
@@ -13,35 +14,48 @@ import org.apache.log4j.Level
  * Time: 20:41
  * To change this template use File | Settings | File Templates.
  */
-object application extends App with Logging {
+class Application extends App with LogHelper {
   override def main(args: Array[String]) {
-    val confFile = new File(args(0))
-    if (!confFile.exists()) {
-      println("error: confFile : " + args(0) + " not exists")
-      System.exit(2)
-    }
-    println(ConfigFactory.parseFile(new File(args(0))))
-    val applicationConfig = new ApplicationConfig(ConfigFactory.parseFile(new File(args(0))))
+
+    val applicationConfig: ApplicationConfig = if (args.isEmpty) readConfig("") else readConfig(args(0))
     val royalExecutor = new RoyalExecutor(applicationConfig)
     royalExecutor.start()
+
   }
 
-  Logging.configure { log =>
-    log.level = Level.INFO
-    log.loggers("ru.megaplan") = Level.DEBUG
+  def readConfig(configPath: String): ApplicationConfig = {
+    def isPath(path: String): Boolean = {
+      try {
+        val p = new java.io.File(path)
+        if (!p.exists()) {
+          log.error("given config parh : " + configPath + " not exist")
+          System.exit(0)
+        }
+        if (!p.canRead || !p.canWrite) {
+          log.error("not enough permissions for read or write config file : " + configPath)
+          System.exit(0)
+        }
 
-    log.console.enabled = true
-    log.console.threshold = Level.WARN
-
-    //log.file.enabled = true
-    //log.file.filename = "/var/log/myapp/myapp.log"
-    //log.file.maxSize = 10 * 1024 // KB
-    //log.file.retainedFiles = 5 // keep five old logs around
-
-    // syslog integration is always via a network socket
-    //log.syslog.enabled = true
-    //log.syslog.host = "syslog-001.internal.example.com"
-    //log.syslog.facility = "local3"
+      } catch {
+        case e: Exception => {
+          log.error("exception in reading config path : " + configPath,e)
+          false
+        }
+      }
+      true
+    }
+    val xStream = new XStream(new DomDriver())
+    xStream.processAnnotations(classOf[ApplicationConfig])
+    val result = {
+      if (!configPath.isEmpty && isPath(configPath)) {
+        xStream.fromXML(new File(configPath))
+      }
+      else xStream.fromXML(this.getClass.getClassLoader.getResource("config.xml"))
+    }
+    log.warn(result)
+    result match {
+      case appConfig: ApplicationConfig => appConfig
+      case _ => throw new ClassCastException
+    }
   }
-
 }
