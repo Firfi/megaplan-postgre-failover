@@ -10,4 +10,7 @@ package ru.megaplan.db.failover
 object NodeConstants {
   val MASTER_NODE = "/db/failover/master"
   val SERVERS_ROOT = "/db/failover/servers"
+  val SHUTDOWN_SIG = "/db/failover/shutdown"
+  val PAUSE_SIG = "/db/failover/pause"
+  val MASTER_TIMELINE = "/db/failover/timeline"
 }
